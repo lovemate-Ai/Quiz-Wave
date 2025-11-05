@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuizWave Universe</title>
+<style>
+body{font-family:Arial,sans-serif;background:linear-gradient(to right,#1e1e2e,#3a3aff);color:white;text-align:center;margin:0;padding:0;}
+.container{max-width:800px;margin:auto;padding:20px;}
+button{padding:10px 20px;margin:10px;background:#ff6f61;color:white;border:none;border-radius:8px;cursor:pointer;font-size:16px;}
+button:hover{background:#ff3b2e;}
+ul{list-style:none;padding:0;}
+.card{background:rgba(0,0,0,0.4);padding:15px;border-radius:10px;margin:10px;}
+</style>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body>
+<div class="container">
+<h1>🎤 QuizWave Universe</h1>
+
+<div id="quiz-section">
+  <button id="start-quiz">🎮 Start Quiz (Voice)</button>
+  <div id="category-select" class="card" style="display:none;"></div>
+  <div id="question-card" class="card" style="display:none;"></div>
+  <div id="score-card" class="card" style="display:none;"></div>
+</div>
+
+<div id="leaderboard-section" class="card">
+<h2>🌍 Global Leaderboard</h2>
+<ul id="leaderboard-list"></ul>
+</div>
+</div>
+
+<script>
+// ===== FIREBASE CONFIG & INIT =====
+const firebaseConfig = {
+  apiKey: "AIzaSyAKRm2lfhskn-3B_0N-AbyI-cT8TUkO9-s",
+  authDomain: "yns-toolify-pro.firebaseapp.com",
+  databaseURL: "https://yns-toolify-pro-default-rtdb.firebaseio.com",
+  projectId: "yns-toolify-pro",
+  storageBucket: "yns-toolify-pro.firebasestorage.app",
+  messagingSenderId: "915535167568",
+  appId: "1:915535167568:web:034c60f71a455634999155",
+  measurementId: "G-YMB4329EQ3"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ===== VOICE RECOGNITION =====
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = new SpeechRecognition();
+recognition.lang='en-US';
+recognition.interimResults=false;
+
+// ===== DOM =====
+const startQuizBtn=document.getElementById("start-quiz");
+const categorySelectDiv=document.getElementById("category-select");
+const questionCard=document.getElementById("question-card");
+const scoreCard=document.getElementById("score-card");
+const leaderboardList=document.getElementById("leaderboard-list");
+
+// ===== USER QUIZ VARS =====
+let selectedCategory="";
+let questions=[];
+let currentQuestionIndex=0;
+let score=0;
+let userName="Player_"+Math.floor(Math.random()*1000);
+
+// ===== SPEAK =====
+function speak(text){
+  const synth=window.speechSynthesis;
+  const utter=new SpeechSynthesisUtterance(text);
+  synth.speak(utter);
+}
+
+// ===== START QUIZ =====
+startQuizBtn.onclick=()=>{
+  speak("Welcome to QuizWave Universe! Please select a category by clicking a button.");
+  db.ref("categories").once("value",snapshot=>{
+    const categories=snapshot.val();
+    categorySelectDiv.innerHTML="";
+    for(let cat in categories){
+      let btn=document.createElement("button");
+      btn.innerText=cat;
+      btn.onclick=()=>{
+        selectedCategory=cat;
+        loadQuiz();
+      }
+      categorySelectDiv.appendChild(btn);
+    }
+    categorySelectDiv.style.display="block";
+  });
+}
+
+// ===== LOAD QUIZ =====
+function loadQuiz(){
+  categorySelectDiv.style.display="none";
+  db.ref("quizzes/"+selectedCategory).once("value",snapshot=>{
+    questions=snapshot.val();
+    currentQuestionIndex=0;
+    score=0;
+    showQuestion();
+  });
+}
+
+// ===== SHOW QUESTION =====
+function showQuestion(){
+  if(currentQuestionIndex>=questions.length){ finishQuiz(); return; }
+  const q=questions[currentQuestionIndex];
+  questionCard.innerHTML=`<h2>${q.question}</h2>
+    ${q.options.map(opt=>`<button onclick="answer('${opt}')">${opt}</button>`).join("")}`;
+  questionCard.style.display="block";
+  speak(q.question);
+}
+
+// ===== ANSWER =====
+function answer(opt){
+  const correct=questions[currentQuestionIndex].answer;
+  if(opt===correct){score+=10;speak("Correct!");} else speak("Wrong! Correct: "+correct);
+  currentQuestionIndex++;
+  showQuestion();
+}
+
+// ===== FINISH QUIZ =====
+function finishQuiz(){
+  questionCard.style.display="none";
+  scoreCard.style.display="block";
+  scoreCard.innerHTML=`<h2>🎉 Quiz Finished!</h2><p>Your Score: ${score}</p>`;
+  db.ref("leaderboard/"+userName).set({name:userName,score:score,country:"Unknown"});
+  loadLeaderboard();
+}
+
+// ===== LOAD LEADERBOARD =====
+function loadLeaderboard(){
+  db.ref("leaderboard").orderByChild("score").limitToLast(10).once("value",snapshot=>{
+    leaderboardList.innerHTML="";
+    const data=snapshot.val();
+    if(!data) return;
+    const sorted=Object.values(data).sort((a,b)=>b.score-a.score);
+    sorted.forEach(u=>{
+      let li=document.createElement("li");
+      li.innerText=`${u.name} - ${u.score}`;
+      leaderboardList.appendChild(li);
+    });
+  });
+}
+
+// ===== INITIAL LEADERBOARD LOAD =====
+loadLeaderboard();
+</script>
+</body>
+</html>
