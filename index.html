@@ -3,244 +3,105 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YNS CALL - Pro v2</title>
+<title>🎙️ Smart Voice Browser</title>
 <style>
-body {
-  font-family: "Poppins", sans-serif;
-  background: #0b0c10;
-  color: white;
-  margin: 0;
-  text-align: center;
+body{
+  background:#101010;color:white;font-family:'Poppins',sans-serif;
+  text-align:center;padding:10px;
 }
-header {
-  background: #1f2833;
-  padding: 10px;
-  font-size: 20px;
-  font-weight: bold;
+input,button{
+  padding:10px;margin:5px;border:none;border-radius:10px;font-size:16px;
 }
-#videoContainer {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 10px;
+button{cursor:pointer;color:white;background:#0d6efd;}
+.voice{background:#fbbc05;}
+iframe{
+  width:95%;height:75vh;margin-top:10px;border:2px solid #333;border-radius:12px;
 }
-video {
-  width: 45%;
-  background: black;
-  border-radius: 10px;
-  margin: 5px;
-}
-#controls {
-  margin-top: 10px;
-}
-button {
-  background: #45a29e;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  margin: 5px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-button:hover {
-  background: #66fcf1;
-  color: black;
-}
-#chatBox {
-  background: #1f2833;
-  width: 90%;
-  max-width: 500px;
-  height: 200px;
-  margin: 15px auto;
-  border-radius: 10px;
-  overflow-y: auto;
-  text-align: left;
-  padding: 10px;
-}
-#msgInput {
-  width: 70%;
-  padding: 8px;
-  border-radius: 10px;
-  border: none;
-}
-#roomLink {
-  color: #66fcf1;
-  word-wrap: break-word;
-}
-#timer {
-  font-weight: bold;
-  color: #66fcf1;
-}
-@media(max-width:700px){
-  video{
-    width:90%;
-  }
-  #msgInput{
-    width:60%;
-  }
-}
+h2{color:#0df;color:#0dcaf0;text-shadow:0 0 10px #0dcaf0;}
 </style>
 </head>
 <body>
-
-<header>📞 YNS CALL - Pro v2</header>
-
-<div id="videoContainer">
-  <video id="localVideo" autoplay muted></video>
-  <video id="remoteVideo" autoplay></video>
-</div>
-
-<div id="controls">
-  <button id="createRoomBtn">Create Room</button>
-  <button id="joinRoomBtn">Join Room</button>
-  <input type="text" id="roomInput" placeholder="Enter Room ID">
-  <button id="muteBtn">🎤 Mute</button>
-  <button id="camBtn">🎥 Off</button>
-  <button id="endBtn">❌ End</button>
-</div>
-
-<p>⏱️ Duration: <span id="timer">00:00</span></p>
-
-<div id="chatBox"></div>
-<div>
-  <input type="text" id="msgInput" placeholder="Type message...">
-  <button id="sendBtn">Send</button>
-</div>
-
-<p>🔗 Room Link: <span id="roomLink">N/A</span></p>
+<h2>🎙️ Smart Voice Controlled Browser</h2>
+<input type="text" id="url" placeholder="Type or say a website/search..." style="width:60%;">
+<button onclick="go()">Go</button>
+<button class="voice" onclick="startVoice()">🎤 Speak</button>
+<iframe id="view"></iframe>
 
 <script>
-let localStream, remoteStream;
-let peerConnection, dataChannel;
-let isMuted = false, isCameraOff = false;
-let callStartTime, timerInterval;
-const servers = { iceServers: [{urls:"stun:stun.l.google.com:19302"}] };
+const iframe=document.getElementById("view");
+let recognition;
 
-// Generate random room ID
-function randomRoomId() {
-  return Math.random().toString(36).substr(2, 8);
+// main go function
+function go(){
+  const input=document.getElementById("url").value.trim();
+  if(!input) return;
+  let finalURL=input;
+
+  // search detection
+  if(!input.startsWith("http") && !input.includes(".")){
+    finalURL=`https://www.google.com/search?q=${encodeURIComponent(input)}`;
+  }else if(!input.startsWith("http")){
+    finalURL=`https://${input}`;
+  }
+  
+  iframe.src=finalURL;
+  sessionStorage.clear();
+  localStorage.clear();
 }
 
-// Elements
-const localVideo = document.getElementById("localVideo");
-const remoteVideo = document.getElementById("remoteVideo");
-const chatBox = document.getElementById("chatBox");
-const roomInput = document.getElementById("roomInput");
-const roomLink = document.getElementById("roomLink");
-const timerDisplay = document.getElementById("timer");
+// voice recognition
+function startVoice(){
+  if(!('webkitSpeechRecognition' in window)){
+    alert("❌ Voice not supported in this browser");
+    return;
+  }
 
-// Load previous chat
-window.onload = () => {
-  const savedChat = localStorage.getItem("ynsChat");
-  if(savedChat) chatBox.innerHTML = savedChat;
-};
-
-// Timer function
-function startTimer(){
-  callStartTime = Date.now();
-  timerInterval = setInterval(()=>{
-    const elapsed = Math.floor((Date.now()-callStartTime)/1000);
-    const min = String(Math.floor(elapsed/60)).padStart(2,'0');
-    const sec = String(elapsed%60).padStart(2,'0');
-    timerDisplay.textContent = `${min}:${sec}`;
-  },1000);
-}
-function stopTimer(){
-  clearInterval(timerInterval);
-  timerDisplay.textContent = "00:00";
+  recognition=new webkitSpeechRecognition();
+  recognition.lang="en-US";
+  recognition.start();
+  recognition.onresult=function(event){
+    const command=event.results[0][0].transcript.toLowerCase();
+    document.getElementById("url").value=command;
+    handleCommand(command);
+  };
 }
 
-document.getElementById("createRoomBtn").onclick = async () => {
-  const roomId = randomRoomId();
-  roomLink.textContent = location.origin + location.pathname + "?room=" + roomId;
-  startCall(roomId, true);
-};
-document.getElementById("joinRoomBtn").onclick = async () => {
-  const roomId = roomInput.value.trim();
-  if(roomId) startCall(roomId, false);
-  else alert("Enter Room ID!");
-};
-
-async function startCall(roomId, isCaller){
-  localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-  localVideo.srcObject = localStream;
-  peerConnection = new RTCPeerConnection(servers);
-  remoteStream = new MediaStream();
-  remoteVideo.srcObject = remoteStream;
-
-  localStream.getTracks().forEach(track=>peerConnection.addTrack(track, localStream));
-  peerConnection.ontrack = e => e.streams[0].getTracks().forEach(t=>remoteStream.addTrack(t));
-
-  dataChannel = peerConnection.createDataChannel("chat");
-  peerConnection.ondatachannel = e => {
-    e.channel.onmessage = ev => addMsg("👤 Friend: "+ev.data);
-  };
-
-  peerConnection.onconnectionstatechange = () => {
-    if(peerConnection.connectionState === "connected"){
-      addMsg("✅ Connected!");
-      startTimer();
-    }
-  };
-
-  peerConnection.onicecandidate = e => {
-    if(e.candidate){
-      const encoded = btoa(JSON.stringify(e.candidate));
-      location.hash = encoded;
-    }
-  };
-
-  if(isCaller){
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    addMsg("🟢 Offer created. Share this link with friend.");
-  }else{
-    const hash = location.hash.substr(1);
-    if(!hash) return alert("No offer found in URL!");
-    const offer = JSON.parse(atob(hash));
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    addMsg("🟢 Answer created. Send your URL back to caller.");
+// smart commands
+function handleCommand(cmd){
+  if(cmd.includes("open ")){
+    const site=cmd.replace("open ","").replace("go to ","").trim().replace(" ","");
+    iframe.src=`https://${site}`;
+  }
+  else if(cmd.includes("search ")){
+    const query=cmd.replace("search ","").trim();
+    iframe.src=`https://www.google.com/search?q=${encodeURIComponent(query)}`;
+  }
+  else if(cmd.includes("scroll down")){
+    iframe.contentWindow.scrollBy(0,300);
+  }
+  else if(cmd.includes("scroll up")){
+    iframe.contentWindow.scrollBy(0,-300);
+  }
+  else if(cmd.includes("go back") || cmd.includes("back")){
+    iframe.contentWindow.history.back();
+  }
+  else if(cmd.includes("go forward") || cmd.includes("forward")){
+    iframe.contentWindow.history.forward();
+  }
+  else if(cmd.includes("reload") || cmd.includes("refresh")){
+    iframe.contentWindow.location.reload();
+  }
+  else if(cmd.includes("stop")){
+    iframe.contentWindow.stop();
+  }
+  else if(cmd.includes("home")){
+    iframe.src="about:blank";
+  }
+  else{
+    // default: treat as search
+    iframe.src=`https://www.google.com/search?q=${encodeURIComponent(cmd)}`;
   }
 }
-
-document.getElementById("sendBtn").onclick = ()=>{
-  const msg = document.getElementById("msgInput").value;
-  if(msg && dataChannel){
-    dataChannel.send(msg);
-    addMsg("🧍You: "+msg);
-    document.getElementById("msgInput").value="";
-  }
-};
-function addMsg(msg){
-  const p=document.createElement("p");
-  p.textContent=msg;
-  chatBox.appendChild(p);
-  chatBox.scrollTop=chatBox.scrollHeight;
-  localStorage.setItem("ynsChat", chatBox.innerHTML);
-}
-
-// Buttons
-document.getElementById("muteBtn").onclick = ()=>{
-  isMuted=!isMuted;
-  localStream.getAudioTracks()[0].enabled=!isMuted;
-  document.getElementById("muteBtn").textContent = isMuted ? "🔇 Unmute" : "🎤 Mute";
-};
-document.getElementById("camBtn").onclick = ()=>{
-  isCameraOff=!isCameraOff;
-  localStream.getVideoTracks()[0].enabled=!isCameraOff;
-  document.getElementById("camBtn").textContent = isCameraOff ? "📷 On" : "🎥 Off";
-};
-document.getElementById("endBtn").onclick = ()=>{
-  peerConnection.close();
-  localStream.getTracks().forEach(t=>t.stop());
-  stopTimer();
-  alert("Call Ended");
-  location.reload();
-};
 </script>
-
 </body>
 </html>
