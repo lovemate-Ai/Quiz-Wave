@@ -1,177 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>🎙️ Smart Voice Search Browser</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Encoder & Decoder Tool</title>
 <style>
   body {
-    font-family: "Poppins", sans-serif;
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    transition: 0.3s ease;
+    font-family: Poppins, sans-serif;
+    background: linear-gradient(135deg, #2c3e50, #3498db);
+    color: white;
+    text-align: center;
+    padding: 20px;
   }
-  :root {
-    --bg: #0d1117;
-    --text: #fff;
-    --card: #161b22;
+  .container {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 20px;
+    max-width: 600px;
+    margin: auto;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
   }
-  .light {
-    --bg: #f8f9fa;
-    --text: #000;
-    --card: #fff;
-  }
-  h1 {
-    margin-top: 30px;
-  }
-  .search-container {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-    width: 90%;
-    max-width: 500px;
-  }
-  #searchBox {
-    flex: 1;
-    padding: 12px;
-    font-size: 18px;
-    border-radius: 12px;
+  input, textarea, button {
+    width: 100%;
+    margin: 10px 0;
     border: none;
-    outline: none;
-    background: var(--card);
-    color: var(--text);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  textarea {
+    height: 150px;
+    resize: none;
   }
   button {
-    padding: 12px 18px;
+    background: #27ae60;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s;
+  }
+  button:hover { background: #2ecc71; }
+  img {
+    max-width: 100%;
+    margin-top: 10px;
     border-radius: 10px;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-  }
-  #voiceBtn {
-    background: #28a745;
-    color: white;
-  }
-  #searchBtn {
-    background: #007bff;
-    color: white;
-  }
-  #results {
-    margin-top: 25px;
-    width: 90%;
-    max-width: 600px;
-    background: var(--card);
-    border-radius: 15px;
-    padding: 15px;
-    box-shadow: 0 0 15px rgba(0,0,0,0.3);
-  }
-  .result-item {
-    margin-bottom: 15px;
-  }
-  #themeToggle {
-    position: fixed;
-    top: 10px;
-    right: 15px;
-    padding: 10px 18px;
-    border: none;
-    border-radius: 25px;
-    background: #ff9800;
-    color: white;
-    cursor: pointer;
   }
 </style>
 </head>
 <body>
-<button id="themeToggle">🌙</button>
-<h1>🎙️ Smart Voice Browser</h1>
 
-<div class="search-container">
-  <input type="text" id="searchBox" placeholder="কোন কিছু লিখে সার্চ করুন..." />
-  <button id="searchBtn">🔍 সার্চ</button>
-  <button id="voiceBtn">🎤 কথা বলুন</button>
+<h1>🖼️ Image Encoder & Decoder Tool</h1>
+<div class="container">
+  <h2>Encode Image ➡️ Base64</h2>
+  <input type="file" id="imageInput" accept="image/*">
+  <textarea id="base64Output" placeholder="Base64 code will appear here..."></textarea>
+  <button onclick="copyCode()">📋 Copy Code</button>
+  <button onclick="downloadCode()">⬇️ Download Code</button>
+
+  <hr>
+
+  <h2>Decode Base64 ➡️ Image</h2>
+  <textarea id="decodeInput" placeholder="Paste Base64 code here or upload file..."></textarea>
+  <input type="file" id="base64File" accept=".txt,.base64">
+  <button onclick="decodeImage()">🔓 Decode</button>
+  <img id="decodedImage" src="" alt="">
 </div>
 
-<div id="results"></div>
-
 <script>
-const searchBox = document.getElementById('searchBox');
-const searchBtn = document.getElementById('searchBtn');
-const resultsDiv = document.getElementById('results');
-const voiceBtn = document.getElementById('voiceBtn');
-const themeToggle = document.getElementById('themeToggle');
+  const imageInput = document.getElementById('imageInput');
+  const base64Output = document.getElementById('base64Output');
+  const base64File = document.getElementById('base64File');
 
-let darkMode = true;
-themeToggle.onclick = () => {
-  document.body.classList.toggle('light');
-  darkMode = !darkMode;
-  themeToggle.textContent = darkMode ? "🌙" : "☀️";
-};
+  // Encode Image
+  imageInput.addEventListener('change', () => {
+    const file = imageInput.files[0];
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      base64Output.value = reader.result;
+    };
+    if (file) reader.readAsDataURL(file);
+  });
 
-// Manual Search Button
-searchBtn.onclick = () => {
-  const query = searchBox.value.trim();
-  if (query) performSearch(query);
-};
-
-// Voice Recognition
-window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const recognition = new SpeechRecognition();
-recognition.lang = 'en-US';
-recognition.interimResults = false;
-
-voiceBtn.onclick = () => {
-  recognition.start();
-  voiceBtn.textContent = "🎧 শুনছে...";
-};
-
-recognition.onresult = (event) => {
-  const command = event.results[0][0].transcript.toLowerCase();
-  voiceBtn.textContent = "🎤 কথা বলুন";
-  searchBox.value = command;
-  handleCommand(command);
-};
-
-function handleCommand(cmd) {
-  if (cmd.includes('search')) {
-    const query = cmd.replace('search', '').trim();
-    if (query) performSearch(query);
-  } else if (cmd.includes('scroll down')) {
-    window.scrollBy(0, 500);
-  } else if (cmd.includes('scroll up')) {
-    window.scrollBy(0, -500);
-  } else if (cmd.includes('next')) {
-    window.scrollBy(0, 800);
-  } else if (cmd.includes('back')) {
-    window.scrollBy(0, -800);
-  } else {
-    performSearch(cmd);
+  // Copy Code
+  function copyCode() {
+    base64Output.select();
+    document.execCommand('copy');
+    alert('✅ Base64 code copied to clipboard!');
   }
-}
 
-async function performSearch(query) {
-  resultsDiv.innerHTML = `<p>🔍 Searching for <b>${query}</b>...</p>`;
-  try {
-    const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`);
-    const data = await res.json();
-    let html = `<h3>Results for "${query}"</h3>`;
-    if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-      data.RelatedTopics.slice(0, 6).forEach(item => {
-        if (item.Text && item.FirstURL) {
-          html += `<div class="result-item"><a href="${item.FirstURL}" target="_blank">${item.Text}</a></div>`;
-        }
-      });
-    } else {
-      html += "<p>No results found.</p>";
+  // Download Base64 as File
+  function downloadCode() {
+    const base64 = base64Output.value.trim();
+    if (!base64) return alert("⚠️ No Base64 code found!");
+    const blob = new Blob([base64], { type: "text/plain" });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = "image_base64.txt";
+    a.click();
+    alert("✅ Base64 file downloaded!");
+  }
+
+  // Decode Base64
+  base64File.addEventListener('change', () => {
+    const file = base64File.files[0];
+    const reader = new FileReader();
+    reader.onload = () => {
+      document.getElementById('decodeInput').value = reader.result;
+    };
+    reader.readAsText(file);
+  });
+
+  function decodeImage() {
+    const code = document.getElementById('decodeInput').value.trim();
+    if (!code.startsWith("data:image")) {
+      alert("⚠️ Invalid Base64 image format!");
+      return;
     }
-    resultsDiv.innerHTML = html;
-  } catch (e) {
-    resultsDiv.innerHTML = "<p>❌ Error loading results.</p>";
+    document.getElementById('decodedImage').src = code;
   }
-}
 </script>
+
 </body>
 </html>
