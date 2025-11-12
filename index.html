@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Image Encoder & Decoder Tool</title>
+<title>Smart Image Encoder Tool</title>
 <style>
   body {
     font-family: Poppins, sans-serif;
@@ -44,78 +44,67 @@
     margin-top: 10px;
     border-radius: 10px;
   }
+  #shortPreview {
+    background: rgba(0,0,0,0.2);
+    padding: 10px;
+    border-radius: 10px;
+    word-wrap: break-word;
+    color: #f1f1f1;
+  }
 </style>
 </head>
 <body>
 
-<h1>🖼️ Image Encoder & Decoder Tool</h1>
+<h1>🖼️ Smart Image Encoder Tool</h1>
 <div class="container">
   <h2>Encode Image ➡️ Base64</h2>
   <input type="file" id="imageInput" accept="image/*">
-  <textarea id="base64Output" placeholder="Base64 code will appear here..."></textarea>
-  <button onclick="copyCode()">📋 Copy Code</button>
-  <button onclick="downloadCode()">⬇️ Download Code</button>
-
-  <hr>
-
-  <h2>Decode Base64 ➡️ Image</h2>
-  <textarea id="decodeInput" placeholder="Paste Base64 code here or upload file..."></textarea>
-  <input type="file" id="base64File" accept=".txt,.base64">
-  <button onclick="decodeImage()">🔓 Decode</button>
-  <img id="decodedImage" src="" alt="">
+  
+  <div id="shortPreview">No image encoded yet...</div>
+  <button onclick="copyShort()">📋 Copy Short Code</button>
+  <button onclick="showFull()">👁️ Show Full Code</button>
+  <button onclick="downloadFull()">⬇️ Download Full Code</button>
+  
+  <textarea id="fullOutput" style="display:none;"></textarea>
 </div>
 
 <script>
   const imageInput = document.getElementById('imageInput');
-  const base64Output = document.getElementById('base64Output');
-  const base64File = document.getElementById('base64File');
+  const shortPreview = document.getElementById('shortPreview');
+  const fullOutput = document.getElementById('fullOutput');
+  let base64Data = "";
 
-  // Encode Image
   imageInput.addEventListener('change', () => {
     const file = imageInput.files[0];
     const reader = new FileReader();
     reader.onloadend = () => {
-      base64Output.value = reader.result;
+      base64Data = reader.result;
+      // Short preview (first + last 50 chars)
+      const shortText = base64Data.slice(0, 50) + " ... " + base64Data.slice(-50);
+      shortPreview.textContent = shortText;
+      fullOutput.value = base64Data;
     };
     if (file) reader.readAsDataURL(file);
   });
 
-  // Copy Code
-  function copyCode() {
-    base64Output.select();
-    document.execCommand('copy');
-    alert('✅ Base64 code copied to clipboard!');
+  function copyShort() {
+    if (!base64Data) return alert("⚠️ No Base64 code yet!");
+    navigator.clipboard.writeText(shortPreview.textContent);
+    alert("✅ Short version copied!");
   }
 
-  // Download Base64 as File
-  function downloadCode() {
-    const base64 = base64Output.value.trim();
-    if (!base64) return alert("⚠️ No Base64 code found!");
-    const blob = new Blob([base64], { type: "text/plain" });
+  function showFull() {
+    if (!base64Data) return alert("⚠️ Encode an image first!");
+    fullOutput.style.display = (fullOutput.style.display === "none") ? "block" : "none";
+  }
+
+  function downloadFull() {
+    if (!base64Data) return alert("⚠️ Nothing to download!");
+    const blob = new Blob([base64Data], { type: "text/plain" });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = "image_base64.txt";
+    a.download = "image_base64_full.txt";
     a.click();
-    alert("✅ Base64 file downloaded!");
-  }
-
-  // Decode Base64
-  base64File.addEventListener('change', () => {
-    const file = base64File.files[0];
-    const reader = new FileReader();
-    reader.onload = () => {
-      document.getElementById('decodeInput').value = reader.result;
-    };
-    reader.readAsText(file);
-  });
-
-  function decodeImage() {
-    const code = document.getElementById('decodeInput').value.trim();
-    if (!code.startsWith("data:image")) {
-      alert("⚠️ Invalid Base64 image format!");
-      return;
-    }
-    document.getElementById('decodedImage').src = code;
   }
 </script>
 
